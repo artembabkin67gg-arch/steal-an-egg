@@ -91,7 +91,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 --====================================================================
--- ROYSTON PREMIUM MINIMAL — СЛАЙД 2: ОТКРЕПЛЕННЫЙ ПЕРЕЛИВАЮЩИЙСЯ ЯРЛЫК R
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 2: ОТКРЕПЛЕННЫЙ ЯРЛЫК R И КЛИК-СКРЫТИЕ
 --====================================================================
 local UserInputService = game:GetService("UserInputService")
 local ScreenGui = _G.Royston.ScreenGui
@@ -193,17 +193,18 @@ end)
 
 UserInputService.InputBegan:Connect(function(i, p) if i.KeyCode == Enum.KeyCode.K and not p then ScreenGui.Enabled = not ScreenGui.Enabled end end)
 
--- Перетаскивание ярлыка «R» пальцами или мышкой
-local dragToggle, toggleStart, toggleStartPos
+-- Перетаскивание ярлыка «R» пальцами или мышкой по всему экрану
+local dragToggle, toggleStart, toggleStartPos, totalDelta
 ToggleButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragToggle = true toggleStart = input.Position toggleStartPos = ToggleButton.Position
+        dragToggle = true toggleStart = input.Position toggleStartPos = ToggleButton.Position totalDelta = 0
         input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragToggle = false end end)
     end
 end)
 UserInputService.InputChanged:Connect(function(input)
     if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - toggleStart
+        totalDelta = totalDelta + delta.Magnitude
         ToggleButton.Position = UDim2.new(toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X, toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y)
     end
 end)
@@ -227,6 +228,7 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -- Логика переключения PHONE режима
+local menuCollapsed = false
 PhoneButton.MouseButton1Click:Connect(function()
     if PhoneButton.Text == "PHONE" then
         PhoneButton.Text = "PC"
@@ -240,10 +242,18 @@ PhoneButton.MouseButton1Click:Connect(function()
         GuiScale.Scale = 1
         ToggleButton.Visible = false
         MainFrame.Visible = true
+        menuCollapsed = false
     end
 end)
+
+-- ЖЕЛЕЗОБЕТОННЫЙ КЛИК/ТАП НА ЯРЛЫК R: Сворачивает и разворачивает меню по нажатию пальцем или мышью
+ToggleButton.Activated:Connect(function()
+    if totalDelta and totalDelta > 15 then return end -- Если ярлык перетаскивали, клик игнорируется
+    menuCollapsed = not menuCollapsed
+    MainFrame.Visible = not menuCollapsed
+end)
 --====================================================================
--- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: ПРЯМОЙ ПЕРЕХВАТ ДЖОЙСТИКА И БАЙПАС
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: ПРЯМОЙ ПЕРЕХВАТ ДЖОЙСТИКА И БАЗОВЫЙ БАЙПАС
 --====================================================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -349,7 +359,6 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + camera.CFrame.RightVector end
                 
                 -- УПРАВЛЕНИЕ 2: Прямой перехват движения родного круглого джойстика Roblox (Для телефона)
-                -- Этот метод считывает отклонение стика джойстика из системных скриптов, даже если Humanoid удален!
                 local playerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
                 local playerModule = playerScripts and playerScripts:FindFirstChild("PlayerModule")
                 if playerModule and moveDirection.Magnitude == 0 then
@@ -359,7 +368,6 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
                         if controlModule and controlModule.GetMoveVector then
                             local rawMoveVector = controlModule:GetMoveVector()
                             if rawMoveVector.Magnitude > 0 then
-                                -- Проецируем наклон джойстика на CFrame камеры смартфона
                                 moveDirection = camera.CFrame.RightVector * rawMoveVector.X + camera.CFrame.LookVector * -rawMoveVector.Z
                             end
                         end
