@@ -143,7 +143,6 @@ PhoneButton.Text = "PHONE"
 PhoneButton.Font = Enum.Font.GothamBold
 PhoneButton.TextSize = 10
 PhoneButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-PhoneButton.Name = "PhoneBtn"
 Instance.new("UICorner", PhoneButton).CornerRadius = UDim.new(0, 6)
 
 -- АВТОНОМНЫЙ ПЕРЕЛИВАЮЩИЙСЯ ЯРЛЫК «R»
@@ -154,7 +153,7 @@ ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 ToggleButton.Text = "R"
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.TextSize = 15
-ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150)
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150) -- Будет синхронно переливаться неоном
 ToggleButton.Active = true
 ToggleButton.Visible = false
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 6)
@@ -251,7 +250,7 @@ ToggleButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not menuCollapsed
 end)
 --====================================================================
--- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: СНОС HUMANOID + ЛОКАЛЬНЫЙ ТАЧ-ДЖОЙСТИК
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: СНОС HUMANOID + ИДЕАЛЬНЫЙ ТАЧ-ДЖОЙСТИК
 --====================================================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -295,13 +294,12 @@ _G.TreadBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ОРИГИНАЛЬНЫЙ BYPASS СО СНОСОМ HUMANOID И ИЗОЛИРОВАННОЙ ЛЕВОЙ НИЖНЕЙ ЗОНОЙ ДЖОЙСТИКА
+-- ИЗОЛИРОВАННАЯ СИСТЕМА ДЖОЙСТИКА (ЛЕВАЯ СТОРОНА ЭКРАНА СТРОГО 50/50)
 local speedActive, velocityConnection = false, nil
 local joystickTouchId = nil
 local joystickStartPos = nil
 local joystickCurrentPos = nil
 
--- Фильтрация нажатий: ходьба инициализируется ТОЛЬКО в левом нижнем углу экрана
 UserInputService.TouchStarted:Connect(function(touch, processed)
     if processed or not speedActive then return end
     
@@ -309,16 +307,16 @@ UserInputService.TouchStarted:Connect(function(touch, processed)
     if not camera then return end
     local viewportSize = camera.ViewportSize
     
-    -- Проверка: находится ли первое касание в левой нижней четверти экрана (Зона джойстика)
-    if touch.Position.X <= (viewportSize.X * 0.45) and touch.Position.Y >= (viewportSize.Y * 0.45) then
-        -- Игнорируем клики по самому GUI хака
+    -- СТРОГОЕ ОГРАНИЧЕНИЕ 50/50: Касание принимается ИСКЛЮЧИТЕЛЬНО в левой половине экрана
+    if touch.Position.X <= (viewportSize.X * 0.5) then
+        -- Игнорируем клики, если палец попал на открытое меню хака
         local mf = _G.Royston.MainFrame
         if mf and mf.Visible and touch.Position.X > mf.AbsolutePosition.X and touch.Position.X < mf.AbsolutePosition.X + mf.AbsoluteSize.X and
            touch.Position.Y > mf.AbsolutePosition.Y and touch.Position.Y < mf.AbsolutePosition.Y + mf.AbsoluteSize.Y then
             return
         end
         
-        -- Фиксируем палец как управляющий ходьбой
+        -- Фиксируем динамический центр в точке прикосновения пальца
         joystickTouchId = touch.Id
         joystickStartPos = Vector2.new(touch.Position.X, touch.Position.Y)
         joystickCurrentPos = joystickStartPos
@@ -354,7 +352,7 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
         
         if humanoid and rootPart then 
             workspace.CurrentCamera.CameraSubject = rootPart 
-            humanoid:Destroy() -- Полный снос Humanoid по вашей схеме
+            humanoid:Destroy() -- Снос Humanoid по вашей схеме
         end
         
         local lastPauseTime = tick()
@@ -388,14 +386,14 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
                 if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - camera.CFrame.RightVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + camera.CFrame.RightVector end
                 
-                -- Метод 2: Чтение изолированного виртуального тач-джойстика (Для телефона)
+                -- Метод 2: Идеальный динамический левый джойстик (Для телефона)
                 if joystickTouchId and joystickStartPos and joystickCurrentPos and moveDirection.Magnitude == 0 then
                     local touchDelta = joystickCurrentPos - joystickStartPos
                     
-                    -- Мертвая зона в 10 пикселей для предотвращения ложных микро-сдвигов
+                    -- Мертвая зона в 10 пикселей для предотвращения дрожания пальца
                     if touchDelta.Magnitude > 10 then
                         local screenDir = touchDelta.Unit
-                        -- Проецируем смещение пальца из зоны джойстика на CFrame камеры смартфона
+                        -- Проецируем смещение строго относительно точки первого касания на CFrame камеры
                         moveDirection = camera.CFrame.RightVector * screenDir.X + camera.CFrame.LookVector * -screenDir.Y
                     end
                 end
