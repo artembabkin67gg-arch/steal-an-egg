@@ -30,7 +30,7 @@ MainFrame.Active = true
 MainFrame.Parent = ScreenGui
 _G.Royston.MainFrame = MainFrame
 
--- Инструмент пропорционального мобильного сжатия
+-- Наш инструмент пропорционального мобильного сжатия
 local GuiScale = Instance.new("UIScale", MainFrame)
 GuiScale.Scale = 1
 _G.Royston.GuiScale = GuiScale
@@ -153,7 +153,7 @@ ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 ToggleButton.Text = "R"
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.TextSize = 15
-ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150) -- Будет переливаться синхронно
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150)
 ToggleButton.Active = true
 ToggleButton.Visible = false
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 6)
@@ -250,7 +250,7 @@ ToggleButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not menuCollapsed
 end)
 --====================================================================
--- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: ВЫСОКОПРОИЗВОДИТЕЛЬНЫЙ BYPASS SPEED
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: СНОС HUMANOID + МОБИЛЬНЫЙ ТАЧ-ВВОД
 --====================================================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -276,7 +276,7 @@ local function createBtn(text, order)
 end
 
 _G.SpeedBtn = createBtn("Speed: OFF", 2)
-_G.TreadBtn = createBtn("Treadmill: ON", 3) -- Переименовано строго в "Treadmill"
+_G.TreadBtn = createBtn("Treadmill: ON", 3)
 
 _G.TreadBtn.MouseButton1Click:Connect(function()
     treadmillState = not treadmillState
@@ -294,33 +294,45 @@ _G.TreadBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- СТАБИЛЬНЫЙ ОРИГИНАЛЬНЫЙ BYPASS СПИДХАК С УДАЛЕНИЕМ HUMANOID
-local speedActive, velocityConnection, clearAntiCheatThread = false, nil, nil
+-- ОРИГИНАЛЬНЫЙ BYPASS СО СНОСОМ HUMANOID И ЧТЕНИЕМ ТАЧСКРИНА ЭКРАНА СМАРТФОНА
+local speedActive, velocityConnection = false, nil
+local touchPosition, isTouching = nil, false
+
+-- Глобальный перехват тач-событий экрана для эмуляции джойстика при удаленном Humanoid
+UserInputService.TouchStarted:Connect(function(touch)
+    -- Игнорируем нажатия, если игрок кликает по самому GUI хака
+    if touch.Position.X > _G.Royston.MainFrame.AbsolutePosition.X and touch.Position.X < _G.Royston.MainFrame.AbsolutePosition.X + _G.Royston.MainFrame.AbsoluteSize.X and
+       touch.Position.Y > _G.Royston.MainFrame.AbsolutePosition.Y and touch.Position.Y < _G.Royston.MainFrame.AbsolutePosition.Y + _G.Royston.MainFrame.AbsoluteSize.Y then
+        return
+    end
+    isTouching = true
+    touchPosition = touch.Position
+end)
+
+UserInputService.TouchMoved:Connect(function(touch)
+    if isTouching then touchPosition = touch.Position end
+end)
+
+UserInputService.TouchEnded:Connect(function()
+    isTouching = false
+    touchPosition = nil
+end)
 
 _G.SpeedBtn.MouseButton1Click:Connect(function()
     speedActive = not speedActive
-    local character = LocalPlayer.Character
-    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    
     if speedActive then
         _G.SpeedBtn.Text, _G.SpeedBtn.TextColor3 = "Speed: ON", Color3.fromRGB(0, 255, 150)
         
+        local character = LocalPlayer.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        
         if humanoid and rootPart then 
             workspace.CurrentCamera.CameraSubject = rootPart 
-            humanoid:Destroy() 
+            humanoid:Destroy() -- Полный снос Humanoid для абсолютного обхода античета
         end
         
-        clearAntiCheatThread = task.spawn(function()
-            while speedActive do
-                task.wait(1.9)
-                local char = LocalPlayer.Character
-                local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
-                if root then
-                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                end
-            end
-        end)
+        local lastPauseTime = tick()
         
         velocityConnection = RunService.Heartbeat:Connect(function()
             local char = LocalPlayer.Character
@@ -330,33 +342,47 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
             if root and camera then
                 root.Anchored = false
                 
+                -- Стабильный сброс логов античета (каждые 2 секунды)
+                if tick() - lastPauseTime >= 2 then
+                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    task.wait(0.01)
+                    lastPauseTime = tick()
+                end
+                
+                -- Синхронизация направления взгляда за камерой (Shift-Lock эффект)
                 local camLook = camera.CFrame.LookVector
                 local targetAngle = math.atan2(-camLook.X, -camLook.Z)
                 root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, targetAngle, 0)
                 root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                 
+                -- Вычисление вектора направления перемещения
                 local moveDirection = Vector3.new(0, 0, 0)
                 
+                -- Метод 1: Чтение WASD кнопок полёта (Для ПК)
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + camera.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - camera.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - camera.CFrame.RightVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + camera.CFrame.RightVector end
                 
-                local masterControl = LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("PlayerModule")
-                if masterControl then
-                    local success, controls = pcall(require, masterControl)
-                    if success and controls and controls.GetMoveVector then
-                        local moveVector = controls:GetMoveVector()
-                        if moveVector.Magnitude > 0 and moveDirection.Magnitude == 0 then
-                            moveDirection = camera.CFrame.RightVector * moveVector.X + camera.CFrame.LookVector * -moveVector.Z
-                        end
+                -- Метод 2: Чтение вектора чистых касаний экрана (Для телефона при стертом Humanoid) [1]
+                if isTouching and touchPosition and moveDirection.Magnitude == 0 then
+                    local viewportSize = camera.ViewportSize
+                    -- Направление вычисляется из смещения пальца относительно центра левой/нижней части экрана (зоны джойстика)
+                    local joystickCenter = Vector2.new(viewportSize.X * 0.2, viewportSize.Y * 0.75)
+                    local touchDelta = Vector2.new(touchPosition.X, touchPosition.Y) - joystickCenter
+                    
+                    if touchDelta.Magnitude > 10 then
+                        local screenDir = touchDelta.Unit
+                        -- Проецируем движение пальца по экрану на 3D вектор CFrame камеры смартфона
+                        moveDirection = camera.CFrame.RightVector * screenDir.X + camera.CFrame.LookVector * -screenDir.Y
                     end
                 end
                 
                 moveDirection = Vector3.new(moveDirection.X, 0, moveDirection.Z)
                 
+                -- Применение скорости из ползунка Power
                 if moveDirection.Magnitude > 0 then
-                    root.AssemblyLinearVelocity = moveDirection.Unit * (_G.curSpeed or 300)
+                    root.AssemblyLinearVelocity = moveDirection.Unit * _G.curSpeed
                 else
                     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 end
@@ -365,16 +391,16 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
     else
         _G.SpeedBtn.Text, _G.SpeedBtn.TextColor3 = "Speed: OFF", Color3.fromRGB(235, 235, 235)
         if velocityConnection then velocityConnection:Disconnect() velocityConnection = nil end
-        if clearAntiCheatThread then task.cancel(clearAntiCheatThread) clearAntiCheatThread = nil end
+        isTouching = false
         
-        local char = LocalPlayer.Character 
-        local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
-        if root then
+        local character = LocalPlayer.Character 
+        local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso"))
+        if rootPart then
             task.spawn(function()
-                for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") then part.CanCollide = false end end
-                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                root.CFrame = CFrame.new(root.Position.X, -450, root.Position.Z)
-                LocalPlayer:LoadCharacter()
+                for _, part in pairs(character:GetDescendants()) do if part:IsA("BasePart") then part.CanCollide = false end end
+                rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                rootPart.CFrame = CFrame.new(rootPart.Position.X, -450, rootPart.Position.Z)
+                LocalPlayer:LoadCharacter() -- Возврат персонажа со стандартным Humanoid
             end)
         else
             LocalPlayer:LoadCharacter()
