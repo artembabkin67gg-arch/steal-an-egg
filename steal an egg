@@ -77,7 +77,7 @@ local UIListLayout = Instance.new("UIListLayout", Container)
 UIListLayout.Padding = UDim.new(0, 10)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Синхронизированный волновой перелив всей графики (Элементы ПК и Ярлык R переливаются вместе!)
+-- Синхронизированный волновой перелив всей графики (Включая ярлык R)
 RunService.RenderStepped:Connect(function()
     if MainFrame and UIStroke and Title then
         local t = tick() * 4.5
@@ -153,7 +153,7 @@ ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 ToggleButton.Text = "R"
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.TextSize = 15
-ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150) -- Будет синхронно переливаться неоном
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150)
 ToggleButton.Active = true
 ToggleButton.Visible = false
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 6)
@@ -193,7 +193,7 @@ end)
 
 UserInputService.InputBegan:Connect(function(i, p) if i.KeyCode == Enum.KeyCode.K and not p then ScreenGui.Enabled = not ScreenGui.Enabled end end)
 
--- Перетаскивание ярлыка «R» пальцами или мышкой по всему экрану
+-- Перетаскивание ярлыка «R» пальцами или мышкой
 local dragToggle, toggleStart, toggleStartPos
 ToggleButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -226,8 +226,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Логика переключения PHONE режима (Инициализация ярлыка над GUI)
-local menuCollapsed = false
+-- Логика переключения PHONE режима
 PhoneButton.MouseButton1Click:Connect(function()
     if PhoneButton.Text == "PHONE" then
         PhoneButton.Text = "PC"
@@ -241,16 +240,10 @@ PhoneButton.MouseButton1Click:Connect(function()
         GuiScale.Scale = 1
         ToggleButton.Visible = false
         MainFrame.Visible = true
-        menuCollapsed = false
     end
 end)
-
-ToggleButton.MouseButton1Click:Connect(function()
-    menuCollapsed = not menuCollapsed
-    MainFrame.Visible = not menuCollapsed
-end)
 --====================================================================
--- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: СНОС HUMANOID + ИДЕАЛЬНЫЙ ТАЧ-ДЖОЙСТИК
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: ПРЯМОЙ ПЕРЕХВАТ ДЖОЙСТИКА И БАЙПАС
 --====================================================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -259,6 +252,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 local Container = _G.Royston.Container
+local ScreenGui = _G.Royston.ScreenGui
 local treadmillState = true
 local hiddenTreadmills = {}
 
@@ -294,57 +288,27 @@ _G.TreadBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ИЗОЛИРОВАННАЯ СИСТЕМА ДЖОЙСТИКА (ЛЕВАЯ СТОРОНА ЭКРАНА СТРОГО 50/50)
-local speedActive, velocityConnection = false, nil
-local joystickTouchId = nil
-local joystickStartPos = nil
-local joystickCurrentPos = nil
-
-UserInputService.TouchStarted:Connect(function(touch, processed)
-    if processed or not speedActive then return end
-    
-    local camera = workspace.CurrentCamera
-    if not camera then return end
-    local viewportSize = camera.ViewportSize
-    
-    -- СТРОГОЕ ОГРАНИЧЕНИЕ 50/50: Касание принимается ИСКЛЮЧИТЕЛЬНО в левой половине экрана
-    if touch.Position.X <= (viewportSize.X * 0.5) then
-        -- Игнорируем клики, если палец попал на открытое меню хака
-        local mf = _G.Royston.MainFrame
-        if mf and mf.Visible and touch.Position.X > mf.AbsolutePosition.X and touch.Position.X < mf.AbsolutePosition.X + mf.AbsoluteSize.X and
-           touch.Position.Y > mf.AbsolutePosition.Y and touch.Position.Y < mf.AbsolutePosition.Y + mf.AbsoluteSize.Y then
-            return
-        end
-        
-        -- Фиксируем динамический центр в точке прикосновения пальца
-        joystickTouchId = touch.Id
-        joystickStartPos = Vector2.new(touch.Position.X, touch.Position.Y)
-        joystickCurrentPos = joystickStartPos
+-- ТВОЯ ТЕХНОЛОГИЯ МГНОВЕННОГО ПОДБОРА (С ФИКСАЦИЕЙ ДЛЯ ТЕЛЕФОНОВ)
+local function instantClickModify(object)
+    if object:IsA("ProximityPrompt") then
+        object.HoldDuration = 0
+        object.MaxActivationDistance = 15
+        object.ClickablePrompt = true
+        object.RequiresLineOfSight = false
     end
-end)
-
-UserInputService.TouchMoved:Connect(function(touch)
-    if speedActive and joystickTouchId and touch.Id == joystickTouchId then
-        joystickCurrentPos = Vector2.new(touch.Position.X, touch.Position.Y)
-    end
-end)
-
-local function resetJoystick()
-    joystickTouchId = nil
-    joystickStartPos = nil
-    joystickCurrentPos = nil
 end
 
-UserInputService.TouchEnded:Connect(function(touch)
-    if joystickTouchId and touch.Id == joystickTouchId then
-        resetJoystick()
-    end
-end)
+workspace.DescendantAdded:Connect(function(desc) task.wait() instantClickModify(desc) end)
+
+-- СКОРОСТНОЙ SPEEDHACK С ДВУМЯ ПАРАЛЛЕЛЬНЫМИ СИСТЕМАМИ УПРАВЛЕНИЯ
+local speedActive, velocityConnection = false, nil
 
 _G.SpeedBtn.MouseButton1Click:Connect(function()
     speedActive = not speedActive
     if speedActive then
         _G.SpeedBtn.Text, _G.SpeedBtn.TextColor3 = "Speed: ON", Color3.fromRGB(0, 255, 150)
+        
+        for _, desc in pairs(workspace:GetDescendants()) do instantClickModify(desc) end
         
         local character = LocalPlayer.Character
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -352,7 +316,7 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
         
         if humanoid and rootPart then 
             workspace.CurrentCamera.CameraSubject = rootPart 
-            humanoid:Destroy() -- Снос Humanoid по вашей схеме
+            humanoid:Destroy() -- Твой оригинальный снос Humanoid для обхода античета
         end
         
         local lastPauseTime = tick()
@@ -365,14 +329,12 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
             if root and camera then
                 root.Anchored = false
                 
-                -- Стабильный сброс логов античета (каждые 2 секунды)
                 if tick() - lastPauseTime >= 2 then
                     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                     task.wait(0.01)
                     lastPauseTime = tick()
                 end
                 
-                -- Синхронизация направления взгляда за камерой (Shift-Lock эффект)
                 local camLook = camera.CFrame.LookVector
                 local targetAngle = math.atan2(-camLook.X, -camLook.Z)
                 root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, targetAngle, 0)
@@ -380,38 +342,42 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
                 
                 local moveDirection = Vector3.new(0, 0, 0)
                 
-                -- Метод 1: Чтение WASD кнопок полёта (Для ПК)
+                -- УПРАВЛЕНИЕ 1: Считывание WASD кнопок полёта (Для ПК)
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + camera.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - camera.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - camera.CFrame.RightVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + camera.CFrame.RightVector end
                 
-                -- Метод 2: Идеальный динамический левый джойстик (Для телефона)
-                if joystickTouchId and joystickStartPos and joystickCurrentPos and moveDirection.Magnitude == 0 then
-                    local touchDelta = joystickCurrentPos - joystickStartPos
-                    
-                    -- Мертвая зона в 10 пикселей для предотвращения дрожания пальца
-                    if touchDelta.Magnitude > 10 then
-                        local screenDir = touchDelta.Unit
-                        -- Проецируем смещение строго относительно точки первого касания на CFrame камеры
-                        moveDirection = camera.CFrame.RightVector * screenDir.X + camera.CFrame.LookVector * -screenDir.Y
+                -- УПРАВЛЕНИЕ 2: Прямой перехват движения родного круглого джойстика Roblox (Для телефона)
+                -- Этот метод считывает отклонение стика джойстика из системных скриптов, даже если Humanoid удален!
+                local playerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
+                local playerModule = playerScripts and playerScripts:FindFirstChild("PlayerModule")
+                if playerModule and moveDirection.Magnitude == 0 then
+                    local success, activeModule = pcall(require, playerModule)
+                    if success and activeModule then
+                        local controlModule = activeModule.controls or (activeModule.GetControls and activeModule:GetControls())
+                        if controlModule and controlModule.GetMoveVector then
+                            local rawMoveVector = controlModule:GetMoveVector()
+                            if rawMoveVector.Magnitude > 0 then
+                                -- Проецируем наклон джойстика на CFrame камеры смартфона
+                                moveDirection = camera.CFrame.RightVector * rawMoveVector.X + camera.CFrame.LookVector * -rawMoveVector.Z
+                            end
+                        end
                     end
                 end
                 
                 moveDirection = Vector3.new(moveDirection.X, 0, moveDirection.Z)
                 
-                -- Применение скорости из ползунка Power
                 if moveDirection.Magnitude > 0 then
                     root.AssemblyLinearVelocity = moveDirection.Unit * _G.curSpeed
                 else
-                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
                 end
             end
         end)
     else
         _G.SpeedBtn.Text, _G.SpeedBtn.TextColor3 = "Speed: OFF", Color3.fromRGB(235, 235, 235)
         if velocityConnection then velocityConnection:Disconnect() velocityConnection = nil end
-        resetJoystick()
         
         local character = LocalPlayer.Character 
         local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso"))
