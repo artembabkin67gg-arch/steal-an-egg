@@ -1,16 +1,25 @@
 --====================================================================
--- ROYSTON PREMIUM MINIMAL — ЧАСТЬ 1: ГРАФИКА И ИНТЕРФЕЙС
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 1: ОРИГИНАЛЬНАЯ ГРАФИКА И БАЗА
 --====================================================================
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
+_G.Royston = _G.Royston or {}
+
+-- Очистка старых копий интерфейса во избежание багов
+if LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("RoystonGui") then
+    LocalPlayer.PlayerGui.RoystonGui:Destroy()
+end
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "RoystonGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+_G.Royston.ScreenGui = ScreenGui
 
+-- Главный фрейм (Заводские ПК размеры 350x210)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 350, 0, 210)
@@ -19,11 +28,17 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
+_G.Royston.MainFrame = MainFrame
+
+-- Инструмент пропорционального мобильного сжатия
+local GuiScale = Instance.new("UIScale", MainFrame)
+GuiScale.Scale = 1
+_G.Royston.GuiScale = GuiScale
 
 local UICorner = Instance.new("UICorner", MainFrame)
 UICorner.CornerRadius = UDim.new(0, 10)
 
--- Широкая неоновая обводка (Thickness = 4)
+-- Исходная неоновая обводка (Thickness = 4)
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Thickness = 4
 UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -39,6 +54,7 @@ Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
 Title.BorderSizePixel = 0
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 10)
+_G.Royston.Title = Title
 
 local CloseButton = Instance.new("TextButton", MainFrame)
 CloseButton.Size = UDim2.new(0, 40, 0, 40)
@@ -55,10 +71,33 @@ local Container = Instance.new("Frame", MainFrame)
 Container.Size = UDim2.new(1, -20, 1, -60)
 Container.Position = UDim2.new(0, 10, 0, 50)
 Container.BackgroundTransparency = 1
+_G.Royston.Container = Container
 
 local UIListLayout = Instance.new("UIListLayout", Container)
 UIListLayout.Padding = UDim.new(0, 10)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Синхронизированный волновой перелив всей графики (Элементы ПК и Ярлык R переливаются вместе!)
+RunService.RenderStepped:Connect(function()
+    if MainFrame and UIStroke and Title then
+        local t = tick() * 4.5
+        local synchronousWave = (math.sin(t) + 1) / 2
+        local targetColor = Color3.fromRGB(0, 255, 150):Lerp(Color3.fromRGB(255, 255, 255), synchronousWave)
+        UIStroke.Color = targetColor
+        Title.TextColor3 = targetColor
+        if _G.Royston.SliderFill then _G.Royston.SliderFill.BackgroundColor3 = targetColor end
+        if _G.Royston.ToggleStroke then _G.Royston.ToggleStroke.Color = targetColor end
+        if _G.Royston.ToggleButton then _G.Royston.ToggleButton.TextColor3 = targetColor end
+    end
+end)
+--====================================================================
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 2: ОТКРЕПЛЕННЫЙ ПЕРЕЛИВАЮЩИЙСЯ ЯРЛЫК R
+--====================================================================
+local UserInputService = game:GetService("UserInputService")
+local ScreenGui = _G.Royston.ScreenGui
+local MainFrame = _G.Royston.MainFrame
+local Container = _G.Royston.Container
+local GuiScale = _G.Royston.GuiScale
 
 local SliderFrame = Instance.new("Frame", Container)
 SliderFrame.Size = UDim2.new(1, 0, 0, 48)
@@ -83,9 +122,10 @@ SliderTrack.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 SliderTrack.Text = ""
 
 local SliderFill = Instance.new("Frame", SliderTrack)
-SliderFill.Size = UDim2.new(1, 0, 1, 0) -- Изначально на максимуме (300)
+SliderFill.Size = UDim2.new(1, 0, 1, 0)
 SliderFill.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
 Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(0, 4)
+_G.Royston.SliderFill = SliderFill
 
 local SliderButton = Instance.new("Frame", SliderFill)
 SliderButton.Size = UDim2.new(0, 12, 0, 12)
@@ -94,20 +134,37 @@ SliderButton.Position = UDim2.new(1, 0, 0.5, 0)
 SliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", SliderButton).CornerRadius = UDim.new(1, 0)
 
--- Синхронизированный волновой перелив всей верхней части
-RunService.RenderStepped:Connect(function()
-    local t = tick() * 4.5
-    local synchronousWave = (math.sin(t) + 1) / 2
-    local targetColor = Color3.fromRGB(0, 255, 150):Lerp(Color3.fromRGB(255, 255, 255), synchronousWave)
-    UIStroke.Color = targetColor
-    Title.TextColor3 = targetColor
-    SliderFill.BackgroundColor3 = targetColor
-end)
+-- Оригинальная кнопка PHONE в шапку ПК-версии
+local PhoneButton = Instance.new("TextButton", MainFrame)
+PhoneButton.Size = UDim2.new(0, 50, 0, 26)
+PhoneButton.Position = UDim2.new(1, -95, 0, 7)
+PhoneButton.BackgroundColor3 = Color3.fromRGB(30, 35, 30)
+PhoneButton.Text = "PHONE"
+PhoneButton.Font = Enum.Font.GothamBold
+PhoneButton.TextSize = 10
+PhoneButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+Instance.new("UICorner", PhoneButton).CornerRadius = UDim.new(0, 6)
 
-_G.minSpeed = 0
-_G.maxSpeed = 300
-_G.curSpeed = 300
-_G.sDrag = false
+-- АВТОНОМНЫЙ ПЕРЕЛИВАЮЩИЙСЯ ЯРЛЫК «R»
+local ToggleButton = Instance.new("TextButton", ScreenGui)
+ToggleButton.Name = "MobileToggleBtn"
+ToggleButton.Size = UDim2.new(0, 36, 0, 30)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+ToggleButton.Text = "R"
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 15
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150) -- Будет переливаться синхронно
+ToggleButton.Active = true
+ToggleButton.Visible = false
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 6)
+_G.Royston.ToggleButton = ToggleButton
+
+local ToggleStroke = Instance.new("UIStroke", ToggleButton)
+ToggleStroke.Thickness = 3
+ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+_G.Royston.ToggleStroke = ToggleStroke
+
+_G.minSpeed, _G.maxSpeed, _G.curSpeed, _G.sDrag = 0, 300, 300, false
 
 local function updS(v)
     local percentage = math.clamp((v - _G.minSpeed) / (_G.maxSpeed - _G.minSpeed), 0, 1)
@@ -119,36 +176,89 @@ local function hInp(i)
     local trackWidth = SliderTrack.AbsoluteSize.X
     local trackPos = SliderTrack.AbsolutePosition.X
     local mouseX = i.Position.X
-    
     local percentage = math.clamp((mouseX - trackPos) / trackWidth, 0, 1)
-    local rawValue = _G.minSpeed + (percentage * (_G.maxSpeed - _G.minSpeed))
-    _G.curSpeed = math.floor(math.clamp(rawValue, 0, 300))
+    _G.curSpeed = math.floor(math.clamp(_G.minSpeed + (percentage * (_G.maxSpeed - _G.minSpeed)), 0, 300))
     updS(_G.curSpeed)
 end
 
-SliderTrack.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then _G.sDrag = true hInp(i) end end)
-UserInputService.InputChanged:Connect(function(i) if _G.sDrag and i.UserInputType == Enum.UserInputType.MouseMovement then hInp(i) end end)
-UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then _G.sDrag = false end end)
+SliderTrack.InputBegan:Connect(function(i) 
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then _G.sDrag = true hInp(i) end 
+end)
+UserInputService.InputChanged:Connect(function(i) 
+    if _G.sDrag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then hInp(i) end 
+end)
+UserInputService.InputEnded:Connect(function(i) 
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then _G.sDrag = false end 
+end)
+
 UserInputService.InputBegan:Connect(function(i, p) if i.KeyCode == Enum.KeyCode.K and not p then ScreenGui.Enabled = not ScreenGui.Enabled end end)
 
+-- Перетаскивание ярлыка «R» пальцами или мышкой по всему экрану
+local dragToggle, toggleStart, toggleStartPos
+ToggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragToggle = true toggleStart = input.Position toggleStartPos = ToggleButton.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragToggle = false end end)
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - toggleStart
+        ToggleButton.Position = UDim2.new(toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X, toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Перетаскивание главного меню за края
 local draggingMenu, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         draggingMenu = true dragStart = input.Position startPos = MainFrame.Position
         input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then draggingMenu = false end end)
     end
 end)
-MainFrame.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
+MainFrame.InputChanged:Connect(function(input) 
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end 
+end)
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and draggingMenu then
         local delta = input.Position - dragStart
         MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
+
+-- Логика переключения PHONE режима (Инициализация ярлыка над GUI)
+local menuCollapsed = false
+PhoneButton.MouseButton1Click:Connect(function()
+    if PhoneButton.Text == "PHONE" then
+        PhoneButton.Text = "PC"
+        GuiScale.Scale = 0.72
+        task.wait(0.02)
+        local centerOffset = (MainFrame.AbsoluteSize.X / 2) - (ToggleButton.Size.X.Offset / 2)
+        ToggleButton.Position = UDim2.new(0, MainFrame.AbsolutePosition.X + centerOffset, 0, MainFrame.AbsolutePosition.Y - 36)
+        ToggleButton.Visible = true
+    else
+        PhoneButton.Text = "PHONE"
+        GuiScale.Scale = 1
+        ToggleButton.Visible = false
+        MainFrame.Visible = true
+        menuCollapsed = false
+    end
+end)
+
+ToggleButton.MouseButton1Click:Connect(function()
+    menuCollapsed = not menuCollapsed
+    MainFrame.Visible = not menuCollapsed
+end)
 --====================================================================
--- ROYSTON PREMIUM MINIMAL — ЧАСТЬ 2: ФУНКЦИИ И ОРИГИНАЛЬНЫЙ SPEED
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: ВЫСОКОПРОИЗВОДИТЕЛЬНЫЙ BYPASS SPEED
 --====================================================================
 local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+local Container = _G.Royston.Container
 local treadmillState = true
 local hiddenTreadmills = {}
 
@@ -166,7 +276,7 @@ local function createBtn(text, order)
 end
 
 _G.SpeedBtn = createBtn("Speed: OFF", 2)
-_G.TreadBtn = createBtn("Treadmill (Дорожка): ON", 3)
+_G.TreadBtn = createBtn("Treadmill: ON", 3) -- Переименовано строго в "Treadmill"
 
 _G.TreadBtn.MouseButton1Click:Connect(function()
     treadmillState = not treadmillState
@@ -176,31 +286,41 @@ _G.TreadBtn.MouseButton1Click:Connect(function()
                 hiddenTreadmills[obj] = obj.Parent obj.Parent = CoreGui
             end
         end
-        _G.TreadBtn.Text, _G.TreadBtn.TextColor3 = "Treadmill (Дорожка): OFF", Color3.fromRGB(255, 100, 100)
+        _G.TreadBtn.Text, _G.TreadBtn.TextColor3 = "Treadmill: OFF", Color3.fromRGB(255, 100, 100)
     else
         for obj, originalParent in pairs(hiddenTreadmills) do if obj and originalParent then obj.Parent = originalParent end end
         table.clear(hiddenTreadmills)
-        _G.TreadBtn.Text, _G.TreadBtn.TextColor3 = "Treadmill (Дорожка): ON", Color3.fromRGB(235, 235, 235)
+        _G.TreadBtn.Text, _G.TreadBtn.TextColor3 = "Treadmill: ON", Color3.fromRGB(235, 235, 235)
     end
 end)
 
--- СТАБИЛЬНЫЙ ФИЗИЧЕСКИЙ СПИДХАК С УДАЛЕНИЕМ HUMANОID И ПЛАВНЫМ WASD УПРАВЛЕНИЕМ ЗА КАМЕРОЙ
-local speedActive, velocityConnection = false, nil
+-- СТАБИЛЬНЫЙ ОРИГИНАЛЬНЫЙ BYPASS СПИДХАК С УДАЛЕНИЕМ HUMANOID
+local speedActive, velocityConnection, clearAntiCheatThread = false, nil, nil
+
 _G.SpeedBtn.MouseButton1Click:Connect(function()
     speedActive = not speedActive
+    local character = LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    
     if speedActive then
         _G.SpeedBtn.Text, _G.SpeedBtn.TextColor3 = "Speed: ON", Color3.fromRGB(0, 255, 150)
         
-        local character = LocalPlayer.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-        
         if humanoid and rootPart then 
             workspace.CurrentCamera.CameraSubject = rootPart 
-            humanoid:Destroy() -- Сносим Humanoid для полного байпаса
+            humanoid:Destroy() 
         end
         
-        local lastPauseTime = tick()
+        clearAntiCheatThread = task.spawn(function()
+            while speedActive do
+                task.wait(1.9)
+                local char = LocalPlayer.Character
+                local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+                if root then
+                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end
+            end
+        end)
         
         velocityConnection = RunService.Heartbeat:Connect(function()
             local char = LocalPlayer.Character
@@ -210,29 +330,33 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
             if root and camera then
                 root.Anchored = false
                 
-                -- Стабильный сброс логов античета: каждые 2 секунды на 10 миллисекунд
-                if tick() - lastPauseTime >= 2 then
-                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    task.wait(0.01)
-                    lastPauseTime = tick()
-                end
-                
-                -- Синхронизация направления взгляда за мышью (Shift-Lock эффект)
                 local camLook = camera.CFrame.LookVector
                 local targetAngle = math.atan2(-camLook.X, -camLook.Z)
                 root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, targetAngle, 0)
                 root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                 
-                -- Считываем WASD кнопки полёта
                 local moveDirection = Vector3.new(0, 0, 0)
+                
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + camera.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - camera.CFrame.LookVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - camera.CFrame.RightVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + camera.CFrame.RightVector end
+                
+                local masterControl = LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("PlayerModule")
+                if masterControl then
+                    local success, controls = pcall(require, masterControl)
+                    if success and controls and controls.GetMoveVector then
+                        local moveVector = controls:GetMoveVector()
+                        if moveVector.Magnitude > 0 and moveDirection.Magnitude == 0 then
+                            moveDirection = camera.CFrame.RightVector * moveVector.X + camera.CFrame.LookVector * -moveVector.Z
+                        end
+                    end
+                end
+                
                 moveDirection = Vector3.new(moveDirection.X, 0, moveDirection.Z)
                 
                 if moveDirection.Magnitude > 0 then
-                    root.AssemblyLinearVelocity = moveDirection.Unit * _G.curSpeed
+                    root.AssemblyLinearVelocity = moveDirection.Unit * (_G.curSpeed or 300)
                 else
                     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 end
@@ -241,35 +365,19 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
     else
         _G.SpeedBtn.Text, _G.SpeedBtn.TextColor3 = "Speed: OFF", Color3.fromRGB(235, 235, 235)
         if velocityConnection then velocityConnection:Disconnect() velocityConnection = nil end
+        if clearAntiCheatThread then task.cancel(clearAntiCheatThread) clearAntiCheatThread = nil end
         
-        local character = LocalPlayer.Character local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso"))
-        if rootPart then
+        local char = LocalPlayer.Character 
+        local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+        if root then
             task.spawn(function()
-                for _, part in pairs(character:GetDescendants()) do if part:IsA("BasePart") then part.CanCollide = false end end
-                rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                rootPart.CFrame = CFrame.new(rootPart.Position.X, -450, rootPart.Position.Z)
-                LocalPlayer:LoadCharacter() -- Void Reset (Перезапуск через бездну для возврата Humanoid)
+                for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") then part.CanCollide = false end end
+                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                root.CFrame = CFrame.new(root.Position.X, -450, root.Position.Z)
+                LocalPlayer:LoadCharacter()
             end)
         else
             LocalPlayer:LoadCharacter()
         end
     end
 end)
-
---====================================================================
--- ТВОЙ ОРИГИНАЛЬНЫЙ, ЧИСТЫЙ СКРИПТ ПОДБОРА ЯИЦ (БЕЗ ОПЕЧАТОК, 0% НАГРУЗКИ)
---====================================================================
-local function instantClickModify(object)
-    if object:IsA("ProximityPrompt") then
-        object.HoldDuration = 0 -- Устанавливаем время удержания в 0, чтобы подбирать в один клик
-        object.MaxActivationDistance = 15 -- Увеличиваем дистанцию, чтобы брать яйцо чуть дальше
-    end
-end
-
--- Сканируем карту на наличие яиц и применяем изменения
-for _, desc in pairs(workspace:GetDescendants()) do
-    instantClickModify(desc)
-end
-
--- Отслеживаем появление новых яиц на карте
-workspace.DescendantAdded:Connect(instantClickModify)
