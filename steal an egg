@@ -143,6 +143,7 @@ PhoneButton.Text = "PHONE"
 PhoneButton.Font = Enum.Font.GothamBold
 PhoneButton.TextSize = 10
 PhoneButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+PhoneButton.Name = "PhoneBtn"
 Instance.new("UICorner", PhoneButton).CornerRadius = UDim.new(0, 6)
 
 -- АВТОНОМНЫЙ ПЕРЕЛИВАЮЩИЙСЯ ЯРЛЫК «R»
@@ -250,7 +251,7 @@ ToggleButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not menuCollapsed
 end)
 --====================================================================
--- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: СНОС HUMANOID + МОБИЛЬНЫЙ ТАЧ-ВВОД
+-- ROYSTON PREMIUM MINIMAL — СЛАЙД 3: СНОС HUMANOID + ЛОКАЛЬНЫЙ ТАЧ-ДЖОЙСТИК
 --====================================================================
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -294,28 +295,52 @@ _G.TreadBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ОРИГИНАЛЬНЫЙ BYPASS СО СНОСОМ HUMANOID И ЧТЕНИЕМ ТАЧСКРИНА ЭКРАНА СМАРТФОНА
+-- ОРИГИНАЛЬНЫЙ BYPASS СО СНОСОМ HUMANOID И ИЗОЛИРОВАННОЙ ЛЕВОЙ НИЖНЕЙ ЗОНОЙ ДЖОЙСТИКА
 local speedActive, velocityConnection = false, nil
-local touchPosition, isTouching = nil, false
+local joystickTouchId = nil
+local joystickStartPos = nil
+local joystickCurrentPos = nil
 
--- Глобальный перехват тач-событий экрана для эмуляции джойстика при удаленном Humanoid
-UserInputService.TouchStarted:Connect(function(touch)
-    -- Игнорируем нажатия, если игрок кликает по самому GUI хака
-    if touch.Position.X > _G.Royston.MainFrame.AbsolutePosition.X and touch.Position.X < _G.Royston.MainFrame.AbsolutePosition.X + _G.Royston.MainFrame.AbsoluteSize.X and
-       touch.Position.Y > _G.Royston.MainFrame.AbsolutePosition.Y and touch.Position.Y < _G.Royston.MainFrame.AbsolutePosition.Y + _G.Royston.MainFrame.AbsoluteSize.Y then
-        return
+-- Фильтрация нажатий: ходьба инициализируется ТОЛЬКО в левом нижнем углу экрана
+UserInputService.TouchStarted:Connect(function(touch, processed)
+    if processed or not speedActive then return end
+    
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    local viewportSize = camera.ViewportSize
+    
+    -- Проверка: находится ли первое касание в левой нижней четверти экрана (Зона джойстика)
+    if touch.Position.X <= (viewportSize.X * 0.45) and touch.Position.Y >= (viewportSize.Y * 0.45) then
+        -- Игнорируем клики по самому GUI хака
+        local mf = _G.Royston.MainFrame
+        if mf and mf.Visible and touch.Position.X > mf.AbsolutePosition.X and touch.Position.X < mf.AbsolutePosition.X + mf.AbsoluteSize.X and
+           touch.Position.Y > mf.AbsolutePosition.Y and touch.Position.Y < mf.AbsolutePosition.Y + mf.AbsoluteSize.Y then
+            return
+        end
+        
+        -- Фиксируем палец как управляющий ходьбой
+        joystickTouchId = touch.Id
+        joystickStartPos = Vector2.new(touch.Position.X, touch.Position.Y)
+        joystickCurrentPos = joystickStartPos
     end
-    isTouching = true
-    touchPosition = touch.Position
 end)
 
 UserInputService.TouchMoved:Connect(function(touch)
-    if isTouching then touchPosition = touch.Position end
+    if speedActive and joystickTouchId and touch.Id == joystickTouchId then
+        joystickCurrentPos = Vector2.new(touch.Position.X, touch.Position.Y)
+    end
 end)
 
-UserInputService.TouchEnded:Connect(function()
-    isTouching = false
-    touchPosition = nil
+local function resetJoystick()
+    joystickTouchId = nil
+    joystickStartPos = nil
+    joystickCurrentPos = nil
+end
+
+UserInputService.TouchEnded:Connect(function(touch)
+    if joystickTouchId and touch.Id == joystickTouchId then
+        resetJoystick()
+    end
 end)
 
 _G.SpeedBtn.MouseButton1Click:Connect(function()
@@ -329,7 +354,7 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
         
         if humanoid and rootPart then 
             workspace.CurrentCamera.CameraSubject = rootPart 
-            humanoid:Destroy() -- Полный снос Humanoid для абсолютного обхода античета
+            humanoid:Destroy() -- Полный снос Humanoid по вашей схеме
         end
         
         local lastPauseTime = tick()
@@ -355,7 +380,6 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
                 root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, targetAngle, 0)
                 root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                 
-                -- Вычисление вектора направления перемещения
                 local moveDirection = Vector3.new(0, 0, 0)
                 
                 -- Метод 1: Чтение WASD кнопок полёта (Для ПК)
@@ -364,16 +388,14 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
                 if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - camera.CFrame.RightVector end
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + camera.CFrame.RightVector end
                 
-                -- Метод 2: Чтение вектора чистых касаний экрана (Для телефона при стертом Humanoid) [1]
-                if isTouching and touchPosition and moveDirection.Magnitude == 0 then
-                    local viewportSize = camera.ViewportSize
-                    -- Направление вычисляется из смещения пальца относительно центра левой/нижней части экрана (зоны джойстика)
-                    local joystickCenter = Vector2.new(viewportSize.X * 0.2, viewportSize.Y * 0.75)
-                    local touchDelta = Vector2.new(touchPosition.X, touchPosition.Y) - joystickCenter
+                -- Метод 2: Чтение изолированного виртуального тач-джойстика (Для телефона)
+                if joystickTouchId and joystickStartPos and joystickCurrentPos and moveDirection.Magnitude == 0 then
+                    local touchDelta = joystickCurrentPos - joystickStartPos
                     
+                    -- Мертвая зона в 10 пикселей для предотвращения ложных микро-сдвигов
                     if touchDelta.Magnitude > 10 then
                         local screenDir = touchDelta.Unit
-                        -- Проецируем движение пальца по экрану на 3D вектор CFrame камеры смартфона
+                        -- Проецируем смещение пальца из зоны джойстика на CFrame камеры смартфона
                         moveDirection = camera.CFrame.RightVector * screenDir.X + camera.CFrame.LookVector * -screenDir.Y
                     end
                 end
@@ -391,7 +413,7 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
     else
         _G.SpeedBtn.Text, _G.SpeedBtn.TextColor3 = "Speed: OFF", Color3.fromRGB(235, 235, 235)
         if velocityConnection then velocityConnection:Disconnect() velocityConnection = nil end
-        isTouching = false
+        resetJoystick()
         
         local character = LocalPlayer.Character 
         local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso"))
@@ -400,7 +422,7 @@ _G.SpeedBtn.MouseButton1Click:Connect(function()
                 for _, part in pairs(character:GetDescendants()) do if part:IsA("BasePart") then part.CanCollide = false end end
                 rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 rootPart.CFrame = CFrame.new(rootPart.Position.X, -450, rootPart.Position.Z)
-                LocalPlayer:LoadCharacter() -- Возврат персонажа со стандартным Humanoid
+                LocalPlayer:LoadCharacter()
             end)
         else
             LocalPlayer:LoadCharacter()
